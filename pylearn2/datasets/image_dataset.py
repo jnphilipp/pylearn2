@@ -23,7 +23,18 @@ class ImageDataset(DenseDesignMatrix):
 
         labels = self.load_labels(label_file, has_header, delimiter)
         number_labels = len(set(labels.values()))
-        ylabels = {v:i for i,v in enumerate(set(labels.values()))}
+
+        if os.path.exists(ylabels_path):
+            ylabels = {int(v):k for k,v in np.loadtxt(ylabels_path,
+                                            delimiter=',',
+                                            dtype=str,
+                                            usecols=(0,1))}
+            a == set(labels.values())
+            b == set(ylabels.values())
+            if not a >= b:
+                ylabels = self.get_ylabels(labels, ylabels_path)
+        else:
+            ylabels = self.get_ylabels(labels, ylabels_path)
 
         imgs = [img for img in os.listdir(image_path)
                     if img.endswith(image_format)]
@@ -43,9 +54,6 @@ class ImageDataset(DenseDesignMatrix):
                                     img.shape[2] if len(img.shape) == 3 else 1)
 
             y[i][ylabels[labels[imgs[i]]]] = 1
-
-        np.savetxt(ylabel_file, np.array(ylabels.items()), fmt=('%s', '%s'),
-            delimiter=',')
         super(ImageDataset, self).__init__(topo_view=data, y=y)
 
     def load_labels(self, label_file, has_header=False, delimiter=','):
@@ -54,3 +62,9 @@ class ImageDataset(DenseDesignMatrix):
                                             skiprows=1 if has_header else 0,
                                             dtype=str,
                                             usecols=(0,1))}
+
+    def get_ylabels(self, labels, ylabel_file):
+        ylabels = {v:i for i,v in enumerate(set(labels.values()))}
+        np.savetxt(ylabel_file, np.array(ylabels.items()), fmt=('%s', '%s'),
+            delimiter=',')
+        return ylabels
