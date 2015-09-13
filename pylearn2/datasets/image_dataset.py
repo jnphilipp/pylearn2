@@ -24,17 +24,15 @@ class ImageDataset(DenseDesignMatrix):
         labels = self.load_labels(label_file, has_header, delimiter)
         number_labels = len(set(labels.values()))
 
-        if os.path.exists(ylabels_path):
-            ylabels = {int(v):k for k,v in np.loadtxt(ylabels_path,
+        if os.path.exists(ylabel_file):
+            ylabels = {k:int(v) for k,v in np.loadtxt(ylabel_file,
                                             delimiter=',',
                                             dtype=str,
                                             usecols=(0,1))}
-            a == set(labels.values())
-            b == set(ylabels.values())
-            if not a >= b:
-                ylabels = self.get_ylabels(labels, ylabels_path)
+            if not set(labels.values()) >= set(ylabels.values()):
+                ylabels = self.get_ylabels(labels, ylabel_file)
         else:
-            ylabels = self.get_ylabels(labels, ylabels_path)
+            ylabels = self.get_ylabels(labels, ylabel_file)
 
         imgs = [img for img in os.listdir(image_path)
                     if img.endswith(image_format)]
