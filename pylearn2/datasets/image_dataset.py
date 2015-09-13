@@ -1,3 +1,5 @@
+# coding: utf-8
+
 __author__ = 'jnphilipp'
 __license__ = 'GPL'
 
@@ -18,21 +20,15 @@ class ImageDataset(DenseDesignMatrix):
 
         data_path = serial.preprocess('${PYLEARN2_DATA_PATH}')
         image_path = os.path.join(data_path, name, which_set)
-        label_file = os.path.join(data_path, name, 'labels.csv')
-        ylabel_file = os.path.join(data_path, name, 'ylabels.csv')
 
-        labels = self.load_labels(label_file, has_header, delimiter)
-        number_labels = len(set(labels.values()))
-
-        if os.path.exists(ylabel_file):
-            ylabels = {k:int(v) for k,v in np.loadtxt(ylabel_file,
-                                            delimiter=',',
+        classes = {k:int(v) for k,v in np.genfromtxt(os.path.join(data_path,
+                                                                name,
+                                                                'classes.csv'),
+                                            delimiter=delimiter,
+                                            skiprows=1 if has_header else 0,
                                             dtype=str,
                                             usecols=(0,1))}
-            if not set(labels.values()) >= set(ylabels.values()):
-                ylabels = self.get_ylabels(labels, ylabel_file)
-        else:
-            ylabels = self.get_ylabels(labels, ylabel_file)
+        nb_classes = len(set(classes.values()))
 
         imgs = [img for img in os.listdir(image_path)
                     if img.endswith(image_format)]
@@ -43,7 +39,7 @@ class ImageDataset(DenseDesignMatrix):
             img.shape[0],
             img.shape[1],
             img.shape[2] if len(img.shape) == 3 else 1))
-        y = np.zeros(shape=(len(imgs), number_labels))
+        y = np.zeros(shape=(len(imgs), nb_classes))
         for i in range(0, len(imgs)):
             img = np.array(Image.open(os.path.join(image_path, imgs[i]))
                     .convert(image_converter))
@@ -51,18 +47,5 @@ class ImageDataset(DenseDesignMatrix):
                                     img.shape[1],
                                     img.shape[2] if len(img.shape) == 3 else 1)
 
-            y[i][ylabels[labels[imgs[i]]]] = 1
+            y[i][classes[imgs[i]]] = 1
         super(ImageDataset, self).__init__(topo_view=data, y=y)
-
-    def load_labels(self, label_file, has_header=False, delimiter=','):
-        return {k:v for k,v in np.loadtxt(label_file,
-                                            delimiter=delimiter,
-                                            skiprows=1 if has_header else 0,
-                                            dtype=str,
-                                            usecols=(0,1))}
-
-    def get_ylabels(self, labels, ylabel_file):
-        ylabels = {v:i for i,v in enumerate(set(labels.values()))}
-        np.savetxt(ylabel_file, np.array(ylabels.items()), fmt=('%s', '%s'),
-            delimiter=',')
-        return ylabels
