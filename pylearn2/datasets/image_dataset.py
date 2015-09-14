@@ -3,15 +3,17 @@
 __author__ = 'jnphilipp'
 __license__ = 'GPL'
 
-from PIL import Image
-from pylearn2.datasets.dense_design_matrix import DenseDesignMatrix
-from pylearn2.utils import serial
+import csv
 import numpy as np
 import os
 
+from PIL import Image
+from pylearn2.datasets.dense_design_matrix import DenseDesignMatrix
+from pylearn2.utils import serial
+
 class ImageDataset(DenseDesignMatrix):
-    def __init__(self, name, which_set, has_header=True,
-                    delimiter=',', image_format='png', image_converter='RGB'):
+    def __init__(self, name, which_set, image_format='png',
+                image_converter='RGB'):
 
         if which_set not in ['train', 'test', 'valid']:
             raise ValueError(
@@ -21,13 +23,11 @@ class ImageDataset(DenseDesignMatrix):
         data_path = serial.preprocess('${PYLEARN2_DATA_PATH}')
         image_path = os.path.join(data_path, name, which_set)
 
-        classes = {k:int(v) for k,v in np.genfromtxt(os.path.join(data_path,
-                                                                name,
-                                                                'classes.csv'),
-                                            delimiter=delimiter,
-                                            skiprows=1 if has_header else 0,
-                                            dtype=str,
-                                            usecols=(0,1))}
+        classes = {}
+        with open('classes.csv', 'r') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                classes[row['image']] = int(row['class'])
         nb_classes = len(set(classes.values()))
 
         imgs = [img for img in os.listdir(image_path)

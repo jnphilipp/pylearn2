@@ -23,15 +23,16 @@ resolved by implementing a batch version.
 __author__ = 'jnphilipp'
 __license__ = 'GPL'
 
-import sys
-import os
 import argparse
+import csv
 import numpy as np
+import os
+import sys
 
 from PIL import Image
 from pylearn2.utils import serial
-from theano import tensor as T
 from theano import function
+from theano import tensor as T
 
 
 def make_argument_parser():
@@ -51,12 +52,6 @@ def make_argument_parser():
     parser.add_argument('--prediction_type', '-P',
                         default="classification",
                         help='Prediction type (classification/regression)')
-    parser.add_argument('--output_type', '-T',
-                        default='int',
-                        help='Output variable type (int/float)')
-    parser.add_argument('--has_header'
-                        default='store_true',
-                        help='classes.csv file has header row')
     parser.add_argument('--image_format', '-F',
                         default='png',
                         help='File extension of the images, only neccessary if test_path is a folder')
@@ -66,8 +61,8 @@ def make_argument_parser():
     return parser
 
 def predict(model_path, test_path, output_path,
-            predictionType='classification', outputType='int',
-            has_header=True, image_format='png', convert_mode='RGB'):
+            predictionType='classification', image_format='png',
+            convert_mode='RGB'):
     """
     Predict from a pkl file.
 
@@ -77,7 +72,7 @@ def predict(model_path, test_path, output_path,
         The file name of the model file.
     test_path : str
         The file name of the file or folder to test/predict.
-    outputpath : str
+    output_path : str
         The file name of the output file.
     predictionType : str, optional
         Type of prediction (classification/regression).
@@ -134,24 +129,25 @@ def predict(model_path, test_path, output_path,
     y = f(x)
 
     print('writing predictions...')
-    classes = {int(v):k for k,v in np.genfromtxt(os.path.join(test_path,
-                                                            'classes.csv'),
-                                        delimiter=',',
-                                        skiprows=1 if has_header else 0,
-                                        dtype=str,
-                                        usecols=(0,1))}
+    classes = {}
+    with open('classes.csv', 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            classes[row['image']] = int(row['class'])
 
     predictions = []
     for i in range(0, len(imgs)):
         print('%s: %s%s' % (imgs[i],
                             y[i],
-                            ' (%s)' % classes[y[i]] if classes else ''))
-        predictions.append([imgs[i], y[i], classes[y[i]] if classes else None])
+                            ' (%s)' % classes[imgs[i]]))
+        predictions.append({'image':imgs[i], 'predicted':y[i], 'class':classes[imgs[i]]})
 
     if output_path:
-        np.savetxt(output_path, np.array(predictions),
-            fmt=('%s', '%s', '%s'),
-            delimiter=',')
+        with open(output_path, 'w') as f:
+            writer = DictWriter(f, ['image', 'predicted', 'class'], dialect='unix')
+            writer.writeheader()
+            for prediction in predictions:
+                writer.writerow(prediction)
 
     return True
 
