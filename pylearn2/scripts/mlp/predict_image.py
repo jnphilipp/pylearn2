@@ -48,14 +48,15 @@ def make_argument_parser():
     parser.add_argument('output_filename',
                         nargs='?',
                         help='Specifies the predictions output file')
-    parser.add_argument('--ylabels_path', '-Y',
-                        help='Specifies the path to the ylabels.csv file')
     parser.add_argument('--prediction_type', '-P',
                         default="classification",
                         help='Prediction type (classification/regression)')
     parser.add_argument('--output_type', '-T',
-                        default="int",
+                        default='int',
                         help='Output variable type (int/float)')
+    parser.add_argument('--has_header'
+                        default='store_true',
+                        help='classes.csv file has header row')
     parser.add_argument('--image_format', '-F',
                         default='png',
                         help='File extension of the images, only neccessary if test_path is a folder')
@@ -66,7 +67,7 @@ def make_argument_parser():
 
 def predict(model_path, test_path, output_path,
             predictionType='classification', outputType='int',
-            ylabels_path=None, image_format='png', convert_mode='RGB'):
+            has_header=True, image_format='png', convert_mode='RGB'):
     """
     Predict from a pkl file.
 
@@ -133,21 +134,19 @@ def predict(model_path, test_path, output_path,
     y = f(x)
 
     print('writing predictions...')
-    ylabels = None
-    if not ylabels_path:
-        ylabels_path = os.path.join(test_path, 'ylabels.csv') 
-    if os.path.exists(ylabels_path):
-        ylabels = {int(v):k for k,v in np.loadtxt(ylabels_path,
-                                            delimiter=',',
-                                            dtype=str,
-                                            usecols=(0,1))}
+    classes = {int(v):k for k,v in np.genfromtxt(os.path.join(test_path,
+                                                            'classes.csv'),
+                                        delimiter=',',
+                                        skiprows=1 if has_header else 0,
+                                        dtype=str,
+                                        usecols=(0,1))}
 
     predictions = []
     for i in range(0, len(imgs)):
         print('%s: %s%s' % (imgs[i],
                             y[i],
-                            ' (%s)' % ylabels[y[i]] if ylabels else ''))
-        predictions.append([imgs[i], y[i], ylabels[y[i]] if ylabels else None])
+                            ' (%s)' % classes[y[i]] if classes else ''))
+        predictions.append([imgs[i], y[i], classes[y[i]] if classes else None])
 
     if output_path:
         np.savetxt(output_path, np.array(predictions),
@@ -163,7 +162,7 @@ if __name__ == "__main__":
     parser = make_argument_parser()
     args = parser.parse_args()
     ret = predict(args.model_filename, args.test_path, args.output_filename,
-                    args.prediction_type, args.output_type, args.ylabels_path,
+                    args.prediction_type, args.output_type, args.has_header,
                     args.image_format, args.convert_mode)
     if not ret:
         sys.exit(-1)

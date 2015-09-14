@@ -10,7 +10,7 @@ import numpy as np
 import os
 
 class ImageDataset(DenseDesignMatrix):
-    def __init__(self, name, which_set, has_header=False,
+    def __init__(self, name, which_set, has_header=True,
                     delimiter=',', image_format='png', image_converter='RGB'):
 
         if which_set not in ['train', 'test', 'valid']:
