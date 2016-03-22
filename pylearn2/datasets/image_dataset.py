@@ -24,7 +24,7 @@ class ImageDataset(DenseDesignMatrix):
         image_path = os.path.join(data_path, name, which_set)
 
         classes = {}
-        with open('classes.csv', 'r') as f:
+        with open(os.path.join(data_path, name, 'classes.csv'), 'r') as f:
             reader = csv.DictReader(f)
             for row in reader:
                 classes[row['image']] = int(row['class'])

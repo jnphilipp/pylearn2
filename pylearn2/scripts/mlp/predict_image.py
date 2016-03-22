@@ -44,8 +44,10 @@ def make_argument_parser():
     )
     parser.add_argument('model_filename',
                         help='Specifies the pkl model file')
-    parser.add_argument('test_path',
-                        help='Specifies the folder or the file to predict')
+    parser.add_argument('name',
+                        help='Name of the dataset')
+    parser.add_argument('which_set',
+                        help='which set to use (train/test/valid)')
     parser.add_argument('output_filename',
                         nargs='?',
                         help='Specifies the predictions output file')
@@ -54,13 +56,13 @@ def make_argument_parser():
                         help='Prediction type (classification/regression)')
     parser.add_argument('--image_format', '-F',
                         default='png',
-                        help='File extension of the images, only neccessary if test_path is a folder')
+                        help='File extension of the images')
     parser.add_argument('--convert_mode', '-C',
                         default='RGB',
                         help='Convert mode')
     return parser
 
-def predict(model_path, test_path, output_path,
+def predict(model_path, name, which_set, output_path,
             predictionType='classification', image_format='png',
             convert_mode='RGB'):
     """
@@ -70,7 +72,9 @@ def predict(model_path, test_path, output_path,
     ----------
     model_path : str
         The file name of the model file.
-    test_path : str
+    name : str
+        The file name of the file or folder to test/predict.
+    which_set : str
         The file name of the file or folder to test/predict.
     output_path : str
         The file name of the output file.
@@ -99,52 +103,50 @@ def predict(model_path, test_path, output_path,
 
     f = function([X], Y, allow_input_downcast=True)
 
-    print('loading data and predicting...')
-    if os.path.isdir(test_path):
-        imgs = [img for img in os.listdir(test_path)
-                    if img.endswith(image_format)]
+    print('loading data...')
+    data_path = serial.preprocess('${PYLEARN2_DATA_PATH}')
+    image_path = os.path.join(data_path, name, which_set)
+    imgs = [img for img in os.listdir(image_path)
+                if img.endswith(image_format)]
 
-        img = np.array(Image.open(os.path.join(test_path, imgs[0]))
-                        .convert(convert_mode))
-        x = np.zeros(shape=(len(imgs),
-                            img.shape[0],
-                            img.shape[1],
-                            img.shape[2] if len(img.shape) == 3 else 1))
-
-        for i in range(0, len(imgs)):
-            img = np.array(Image.open(os.path.join(test_path, imgs[i]))
-                            .convert(convert_mode))
-            x[i] = img.reshape(img.shape[0],
-                                img.shape[1],
-                                img.shape[2] if len(img.shape) == 3 else 1)
-    else:
-        imgs = [os.path.basename(test_path)]
-        img = np.array(Image.open(test_path).convert(convert_mode))
-        img = img.reshape(img.shape[0],
+    img = np.array(Image.open(os.path.join(image_path, imgs[0]))
+                    .convert(convert_mode))
+    x = np.zeros(shape=(len(imgs),
+                        img.shape[0],
                         img.shape[1],
-                        img.shape[2] if len(img.shape) == 3 else 1)
-        x = np.zeros(shape=(1, img.shape[0], img.shape[1], img.shape[2]))
-        x[0] = img
+                        img.shape[2] if len(img.shape) == 3 else 1))
 
+    for i in range(0, len(imgs)):
+        img = np.array(Image.open(os.path.join(image_path, imgs[i]))
+                        .convert(convert_mode))
+        x[i] = img.reshape(img.shape[0],
+                            img.shape[1],
+                            img.shape[2] if len(img.shape) == 3 else 1)
+
+    # predict iamges
+    print('predicting images...')
     y = f(x)
 
     print('writing predictions...')
     classes = {}
-    with open('classes.csv', 'r') as f:
+    with open(os.path.join(data_path, name, 'classes.csv'), 'r') as f:
         reader = csv.DictReader(f)
         for row in reader:
             classes[row['image']] = int(row['class'])
 
     predictions = []
+    tp = 0
     for i in range(0, len(imgs)):
         print('%s: %s%s' % (imgs[i],
                             y[i],
                             ' (%s)' % classes[imgs[i]]))
+        if y[i] == classes[imgs[i]]: tp += 1
         predictions.append({'image':imgs[i], 'predicted':y[i], 'class':classes[imgs[i]]})
+    print('precision: %.4f' % (tp / len(imgs)))
 
     if output_path:
         with open(output_path, 'w') as f:
-            writer = DictWriter(f, ['image', 'predicted', 'class'], dialect='unix')
+            writer = csv.DictWriter(f, ['image', 'predicted', 'class'], dialect='unix')
             writer.writeheader()
             for prediction in predictions:
                 writer.writerow(prediction)
@@ -157,8 +159,8 @@ if __name__ == "__main__":
     """
     parser = make_argument_parser()
     args = parser.parse_args()
-    ret = predict(args.model_filename, args.test_path, args.output_filename,
-                    args.prediction_type, args.output_type, args.has_header,
+    ret = predict(args.model_filename, args.name, args.which_set,
+                    args.output_filename, args.prediction_type,
                     args.image_format, args.convert_mode)
     if not ret:
         sys.exit(-1)
